@@ -7,24 +7,26 @@
 using namespace cv;
 using namespace std;
 
-bool compareContourArea(vector<Point> i, vector<Point> j);
+bool compareContourArea(vector<Point>, vector<Point>);
 
 int main(int argc, char** argv)
 {
 	RNG rng(12345);
-	Mat original, processing, render;
+	Mat original, processing, contoursRender, rectsRender, perspectiveRender;
 	vector<Vec4i> hierarchy;
 	vector<vector<Point>> contours;
 	int nCards = 2;
 
 	namedWindow("original", 1);
 	namedWindow("processing", 1);
-	namedWindow("render", 1);
+	namedWindow("contours", 1);
+	namedWindow("rectangles", 1);
+	namedWindow("perspective", 1);
 
 	// read from image
 	original = imread("../Assets/cards.jpg", IMREAD_COLOR);
 
-		if (original.empty())
+	if (original.empty())
 	{
 		cout << "Could not open or find the image" << endl;
 		return -1;
@@ -48,25 +50,50 @@ int main(int argc, char** argv)
 	// sorting by largest area
 	sort(contours.begin(), contours.end(), compareContourArea);
 
-	// draw detected cards
-	render = Mat::zeros(processing.size(), CV_8UC3);
+	// prepare rendering frames
+	contoursRender = Mat::zeros(processing.size(), CV_8UC3);
+	rectsRender = Mat::zeros(processing.size(), CV_8UC3);
 
+	// process detected cards
 	for (int i = 0; i < nCards; i++)
 	{
+		// card contours
+		vector<Point> contour = contours[i];
+
+		// rectangle from the contours, only 4 points
+		RotatedRect rect = minAreaRect(contour);
+		Point2f rectPoints[4];
+		rect.points(rectPoints);
+
+		// set rectangles points on a new perspective
+		Point2f transfPoints[4];
+		transfPoints[0] = Point2f(0, 449);
+		transfPoints[1] = Point2f(0, 0);
+		transfPoints[2] = Point2f(449, 0);
+		transfPoints[3] = Point2f(449, 449);
+
+		// warp points in the original image according to the new perspective
+		Mat transform = getPerspectiveTransform(rectPoints, transfPoints);
+		warpPerspective(original, perspectiveRender, transform, Size(450, 450));
+
+		// process rendering
 		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-		drawContours(render, contours, i, color, 1, CV_AA, hierarchy, 0, Point());
 
-		for (unsigned int x = 0; x < contours[i].size(); x++)
+		// render contours
+		drawContours(contoursRender, contours, i, color, 1, CV_AA, hierarchy, 0, Point());
+
+		// render rectangle
+		for (int j = 0; j < 4; j++)
 		{
-			// cout << "Point " << x << " - x: " << contours[i][x].x << " | y: " << contours[i][x].y << endl;
+			line(rectsRender, rectPoints[j], rectPoints[(j + 1) % 4], color, 1, 8);
 		}
-
-		cout << endl << endl << endl;
 	}
 
 	imshow("original", original);
 	imshow("processing", processing);
-	imshow("render", render);
+	imshow("contours", contoursRender); 
+	imshow("rectangles", rectsRender);
+	imshow("perspective", perspectiveRender);
 
 	waitKey(0);
 	return 0;
