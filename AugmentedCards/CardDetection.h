@@ -4,6 +4,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -25,6 +26,7 @@ struct Rectangle
 };
 
 vector<Card> readDeck(string filename);
+void train(string filename, int nCards);
 
 bool isNumber(string number);
 bool compareContourArea(vector<Point> i, vector<Point> j);
@@ -35,5 +37,8 @@ void preprocess(Mat &image);
 int getCardDiff(Mat detectedCard, Mat deckCard);
 vector<vector<Point>> getContours(Mat image, int nCards);
 Rectangle getCardRectangle(vector<Point> contour);
+
 Mat getCardPerspective(Mat image, Rectangle rectangle);
+Mat getCardPerspective2(Mat image, Rectangle rectangle);
 Card detectCard(Mat perspective, vector<Card> deck, Mat deckImage);
+Card detectCard2(Mat perspective, vector<Card> deck, Mat deckImage);

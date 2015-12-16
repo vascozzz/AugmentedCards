@@ -3,19 +3,23 @@
 
 using namespace std;
 
-void detectCards();
+string baseAssetsPath = "../Assets/";
+
+void displayHelp();
+void detectCards(string deckImagePath, string deckListPath);
 
 int main(int argc, char** argv)
 {
-	detectCards();
+	// train(baseAssetsPath + "cards.png", 54);
+	detectCards(baseAssetsPath + "deck.png", baseAssetsPath + "deck.txt");
 	waitKey(0);
 }
 
-void detectCards()
+void detectCards(string deckImagePath, string deckListPath)
 {
 	Mat image = imread("../Assets/3.jpg", IMREAD_COLOR);
-	Mat deckImage = imread("../Assets/cardbase.png", IMREAD_GRAYSCALE);
-	vector<Card> deck = readDeck("../Assets/deck.txt");
+	Mat deckImage = imread(deckImagePath, IMREAD_GRAYSCALE); // IMREAD_GRAYSCALE
+	vector<Card> deck = readDeck(deckListPath);
 	int nCards = 4;
 
 	if (image.empty())
@@ -37,20 +41,15 @@ void detectCards()
 		Mat perspective = getCardPerspective(image, rectangle);
 		Card card = detectCard(perspective, deck, deckImage);
 
-		// testing
 		cout << "Matched with " << card.symbol << " | " << card.suit << endl;
-
-		vector<Vec4i> hierarchy;
-
-		drawContours(image, contours, i, Scalar(0,0,255), 1, CV_AA, hierarchy, 0, Point());
-
-		for (int j = 0; j < 4; j++)
-		{
-			Point2f rectanglePoints[] = { rectangle.p1, rectangle.p2, rectangle.p3, rectangle.p4 };
-			line(image, rectanglePoints[j], rectanglePoints[(j + 1) % 4], Scalar(255, 0, 0), 3, 8);
-		}
 	}
 
 	namedWindow("main");
 	imshow("main", image);
+}
+
+void displayHelp()
+{
+	cout << "Usage example: " << endl;
+	cout << "Available methods: " << endl;
 }
