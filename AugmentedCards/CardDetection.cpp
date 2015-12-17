@@ -1,17 +1,55 @@
 #include "CardDetection.h"
 
-vector<Card> readDeck(string filename)
+void train(string filename, int nCards, DetectionMethod method)
+{
+	Mat deck = imread(filename, IMREAD_COLOR);
+
+	if (deck.empty())
+	{
+		cout << "Could not open or find the file." << endl;
+		exit(-1);
+	}
+
+	Mat cardBase = Mat::zeros(Size(450 * nCards, 450), CV_8UC3);
+	vector<vector<Point>> contours = getContours(deck, nCards);
+
+	if ((int)contours.size() < nCards)
+	{
+		return;
+	}
+
+	for (int i = 0; i < nCards; i++)
+	{
+		Rectangle rectangle = getCardRectangle(contours[i]);
+		Mat perspective;
+
+		if (method == Binary)
+		{
+			perspective = getCardPerspective(deck, rectangle, Binary);
+		}
+		else if (method == Surf)
+		{
+			perspective = getCardPerspective(deck, rectangle, Surf);
+		}
+
+		appendToMat(cardBase, perspective, 450 * i, 0);
+	}
+
+	imwrite("../Assets/deck_training.png", cardBase);
+}
+
+vector<Card> readDeckList(string filename)
 {
 	ifstream file(filename);
 	stringstream stream;
 	string line, word;
-
 	vector<Card> deck;
 	Card card;
 
 	if (!file.is_open())
 	{
-		return deck;
+		cout << "Could not open or find the file." << endl;
+		exit(-1);
 	}
 
 	while (getline(file, line))
@@ -41,6 +79,48 @@ vector<Card> readDeck(string filename)
 
 	file.close();
 	return deck;
+}
+
+void readDeckImage(string filename, vector<Card> &deck, DetectionMethod method)
+{
+	Mat deckImage;
+
+	if (method == Binary)
+	{
+		deckImage = imread(filename, IMREAD_GRAYSCALE);
+	}
+
+	else if (method == Surf)
+	{
+		deckImage = imread(filename, IMREAD_COLOR);
+	}
+
+	if (deckImage.empty())
+	{
+		cout << "Could not open or find the file." << endl;
+		exit(-1);
+	}
+
+	SurfFeatureDetector detector(400);
+	SurfDescriptorExtractor extractor;
+
+	for (size_t i = 0; i < deck.size(); i++)
+	{
+		Mat card = deckImage(Rect(i * 450, 0, 450, 450));
+		deck[i].image = card;
+
+		if (method == Surf)
+		{
+			vector<KeyPoint> keyPoints;
+			Mat descriptors;
+
+			detector.detect(card, keyPoints);
+			extractor.compute(card, keyPoints, descriptors);
+
+			deck[i].keyPoints = keyPoints;
+			deck[i].descriptors = descriptors;
+		}	
+	}
 }
 
 bool isNumber(string number)
@@ -162,52 +242,7 @@ int getBinaryDiff(Mat detectedCard, Mat deckCard)
 	GaussianBlur(diff, diff, Size(5, 5), 5);
 	threshold(diff, diff, 200, 255, THRESH_BINARY);
 
-	/*namedWindow("detectedCard");
-	imshow("detectedCard", detectedCard);
-	namedWindow("deckCard");
-	imshow("deckCard", deckCard);
-	namedWindow("diff");
-	imshow("diff", diff);
-	waitKey(0);*/
-
 	return countNonZero(diff);
-}
-
-int getSurfMatches(Mat image1, Mat image2)
-{
-	int minHessian = 400;
-	double maxDist = 0.2;
-
-	SurfFeatureDetector detector(minHessian);
-	SurfDescriptorExtractor extractor;
-	FlannBasedMatcher matcher;
-
-	vector<DMatch> matches;
-	vector<KeyPoint> keypoints1, keypoints2;
-	Mat descriptors1, descriptors2;
-
-	// detect keypoints
-	detector.detect(image1, keypoints1);
-	detector.detect(image2, keypoints2);
-
-	// clculate descriptors
-	extractor.compute(image1, keypoints1, descriptors1);
-	extractor.compute(image2, keypoints2, descriptors2);
-
-	// matches
-	matcher.match(descriptors1, descriptors2, matches);
-	filterMatchesByAbsoluteValue(matches, maxDist);
-	filterMatchesRANSAC(matches, keypoints1, keypoints2);
-
-	/*Mat img_matches;
-	drawMatches(detectedCard, keypoints_1, deckCard, keypoints_2, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	imshow("matches", img_matches);
-	imshow("card", detectedCard);
-	imshow("deck", deckCard);
-	cout << "Good matches: " << matches.size() << endl;
-	waitKey(0);*/
-
-	return (int)matches.size();
 }
 
 void filterMatchesByAbsoluteValue(vector<DMatch> &matches, float maxDistance)
@@ -255,92 +290,85 @@ Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, v
 	return homography;
 }
 
-Card detectCard(Mat perspective, vector<Card> deck, Mat deckImage, DetectionMethod method)
+int getSurfMatches(vector<KeyPoint> keyPoints1, Mat descriptors1, vector<KeyPoint> keyPoints2, Mat descriptors2)
 {
-	Mat flipped;
-	flip(perspective, flipped, -1);
+	FlannBasedMatcher matcher;
+	double maxDist = 0.2;
+	vector<DMatch> matches;
 
-	int bestDiff;
+	matcher.match(descriptors1, descriptors2, matches);
+	filterMatchesByAbsoluteValue(matches, maxDist);
+	filterMatchesRANSAC(matches, keyPoints1, keyPoints2);
+
+	return (int)matches.size();
+}
+
+int detectCardBinary(Mat card, Mat flipped, vector<Card> deck)
+{
+	int bestDiff = INT_MAX;
 	int bestIndex;
+
+	for (size_t i = 0; i < deck.size(); i++)
+	{
+		int diff = getBinaryDiff(card, deck[i].image);
+		int flippedDiff = getBinaryDiff(flipped, deck[i].image);
+
+		int minDiff = min(diff, flippedDiff);
+
+		if (minDiff < bestDiff)
+		{
+			bestDiff = minDiff;
+			bestIndex = i;
+		}
+	}
+
+	return bestIndex;
+}
+
+int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
+{
+	int bestMatches = -1;
+	int bestIndex;
+
+	SurfFeatureDetector detector(400);
+	SurfDescriptorExtractor extractor;
+	vector<KeyPoint> keyPoints, keyPointsFlipped;
+	Mat descriptors, descriptorsFlipped;
+
+	detector.detect(card, keyPoints);
+	extractor.compute(card, keyPoints, descriptors);
+
+	for (size_t i = 0; i < deck.size(); i++)
+	{
+		int matches = getSurfMatches(keyPoints, descriptors, deck[i].keyPoints, deck[i].descriptors);
+		int flipedMatches = getSurfMatches(keyPointsFlipped, descriptorsFlipped, deck[i].keyPoints, deck[i].descriptors);
+
+		int maxMatches = max(matches, flipedMatches);
+
+		if (maxMatches > bestMatches)
+		{
+			bestMatches = maxMatches;
+			bestIndex = i;
+		}
+	}
+
+	return bestIndex;
+}
+
+Card detectCard(Mat card, vector<Card> deck, DetectionMethod method)
+{
+	int cardIndex = 0;
+	Mat flipped;
+	flip(card, flipped, -1);
 
 	if (method == Binary)
 	{
-		bestDiff = INT_MAX;
-
-		for (size_t i = 0; i < deck.size(); i++)
-		{
-			Mat deckCard = deckImage(Rect(i * 450, 0, 450, 450));
-
-			int diff = getBinaryDiff(perspective, deckCard);
-			int flippedDiff = getBinaryDiff(flipped, deckCard);
-			int minDiff = min(diff, flippedDiff);
-
-			if (minDiff < bestDiff)
-			{
-				bestDiff = minDiff;
-				bestIndex = i;
-			}
-		}
+		cardIndex = detectCardBinary(card, flipped, deck);
 	}
-
 	else if (method == Surf)
 	{
-		bestDiff = -1;
-
-		for (size_t i = 0; i < deck.size(); i++)
-		{
-			Mat deckCard = deckImage(Rect(i * 450, 0, 450, 450));
-
-			int diff = getSurfMatches(perspective, deckCard);
-			int flippedDiff = getSurfMatches(flipped, deckCard);
-			int maxDiff = max(diff, flippedDiff);
-
-			if (maxDiff > bestDiff)
-			{
-				bestDiff = maxDiff;
-				bestIndex = i;
-			}
-		}
+		cardIndex = detectCardSurf(card, flipped, deck);
 	}
 
-	return deck[bestIndex];
-}
-
-void train(string filename, int nCards, DetectionMethod method)
-{
-	Mat deck = imread(filename, IMREAD_COLOR);
-
-	if (deck.empty())
-	{
-		cout << "Could not open or find the image." << endl;
-		return;
-	}
-
-	Mat cardBase = Mat::zeros(Size(450 * nCards, 450), CV_8UC3);
-	vector<vector<Point>> contours = getContours(deck, nCards);
-
-	if ((int)contours.size() < nCards)
-	{
-		return;
-	}
-
-	for (int i = 0; i < nCards; i++)
-	{
-		Rectangle rectangle = getCardRectangle(contours[i]);
-		Mat perspective;
-		
-		if (method == Binary)
-		{
-			perspective = getCardPerspective(deck, rectangle, Binary);
-		}
-
-		else if (method == Surf)
-		{
-			perspective = getCardPerspective(deck, rectangle, Surf);
-		}
-
-		appendToMat(cardBase, perspective, 450 * i, 0);
-	}
-
-	imwrite("../Assets/output.png", cardBase);
+	return deck[cardIndex];
 }

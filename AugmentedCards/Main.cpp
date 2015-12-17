@@ -11,13 +11,13 @@ void detectCards(string deckImagePath, string deckListPath, DetectionMethod meth
 int main(int argc, char** argv)
 {
 	// train(baseAssetsPath + "deck.png", 54, Surf);
-	detectCards(baseAssetsPath + "deck_surf.png", baseAssetsPath + "deck.txt", Surf);
+	detectCards(baseAssetsPath + "deck.txt", baseAssetsPath + "deck_surf.png", Surf);
 	waitKey(0);
 }
 
-void detectCards(string deckImagePath, string deckListPath, DetectionMethod method)
+void detectCards(string deckListPath, string deckImagePath, DetectionMethod method)
 {
-	Mat image, deckImage;
+	Mat image;
 	vector<Card> deck;
 	vector<vector<Point>> contours;
 	int nCards = 4;
@@ -27,23 +27,13 @@ void detectCards(string deckImagePath, string deckListPath, DetectionMethod meth
 
 	if (image.empty())
 	{
-		cout << "Could not open or find the image" << endl;
+		cout << "Could not open or find the file." << endl;
 		return;
 	}
 
 	// read deck list
-	deck = readDeck(deckListPath);
-
-	// read deck image
-	if (method == Binary)
-	{
-		deckImage = imread(deckImagePath, IMREAD_GRAYSCALE);
-	}
-
-	if (method == Surf)
-	{
-		deckImage = imread(deckImagePath, IMREAD_COLOR);
-	}
+	deck = readDeckList(deckListPath);
+	readDeckImage(deckImagePath, deck, method);
 
 	// card detection
 	contours = getContours(image, nCards);
@@ -57,7 +47,7 @@ void detectCards(string deckImagePath, string deckListPath, DetectionMethod meth
 	{
 		Rectangle rectangle = getCardRectangle(contours[i]);
 		Mat perspective = getCardPerspective(image, rectangle, method);
-		Card card = detectCard(perspective, deck, deckImage, method);
+		Card card = detectCard(perspective, deck, method);
 
 		cout << "Matched with " << card.symbol << " | " << card.suit << endl;
 	}
