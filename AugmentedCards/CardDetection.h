@@ -13,6 +13,8 @@
 #include <string>
 #include <limits>
 
+#include "Card.h"
+
 using namespace cv;
 using namespace std;
 
@@ -20,16 +22,6 @@ enum DetectionMethod
 {
 	Binary,
 	Surf
-};
-
-struct Card
-{
-	bool isNumber;
-	string symbol;
-	string suit;
-
-	Mat image, descriptors;
-	vector<KeyPoint> keyPoints;
 };
 
 struct Rectangle
