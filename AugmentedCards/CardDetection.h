@@ -1,9 +1,12 @@
 #pragma once
 
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv\cv.h>
+#include <opencv2\core\core_c.h>
+#include <opencv2\highgui\highgui.hpp>
+#include <opencv2\imgproc\imgproc.hpp>
+#include <opencv2\features2d\features2d.hpp>
+#include <opencv2\nonfree\nonfree.hpp>
+#include <opencv2\nonfree\features2d.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -12,6 +15,12 @@
 
 using namespace cv;
 using namespace std;
+
+enum DetectionMethod
+{
+	Binary,
+	Surf
+};
 
 struct Card
 {
@@ -26,19 +35,17 @@ struct Rectangle
 };
 
 vector<Card> readDeck(string filename);
-void train(string filename, int nCards);
-
 bool isNumber(string number);
-bool compareContourArea(vector<Point> i, vector<Point> j);
+bool compareContourArea(vector<Point> v1, vector<Point> v2);
 void appendToMat(Mat image, Mat section, int x, int y);
 float calculateDistance(Point2f p1, Point2f p2);
-
 void preprocess(Mat &image);
-int getCardDiff(Mat detectedCard, Mat deckCard);
 vector<vector<Point>> getContours(Mat image, int nCards);
 Rectangle getCardRectangle(vector<Point> contour);
-
-Mat getCardPerspective(Mat image, Rectangle rectangle);
-Mat getCardPerspective2(Mat image, Rectangle rectangle);
-Card detectCard(Mat perspective, vector<Card> deck, Mat deckImage);
-Card detectCard2(Mat perspective, vector<Card> deck, Mat deckImage);
+Mat getCardPerspective(Mat image, Rectangle rectangle, DetectionMethod method);
+int getBinaryDiff(Mat detectedCard, Mat deckCard);
+int getSurfMatches(Mat image1, Mat image2);
+void filterMatchesByAbsoluteValue(std::vector<DMatch> &matches, float maxDistance);
+Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, vector<KeyPoint> &keypointsB);
+Card detectCard(Mat perspective, vector<Card> deck, Mat deckImage, DetectionMethod method);
+void train(string filename, int nCards, DetectionMethod method);
