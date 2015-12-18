@@ -123,6 +123,8 @@
     <ClInclude Include="Card.h" />
     <ClInclude Include="CardDetection.h" />
     <ClInclude Include="CardGame.h" />
+    <ClInclude Include="DetectionMethod.h" />
+    <ClInclude Include="Rectangle.h" />
     <ClInclude Include="SimpleGame.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

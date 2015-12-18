@@ -15,7 +15,8 @@ void train(string filename, int nCards, DetectionMethod method)
 
 	if ((int)contours.size() < nCards)
 	{
-		return;
+		cout << "Number of cards required for training not found." << endl;
+		exit(-1);
 	}
 
 	for (int i = 0; i < nCards; i++)
@@ -38,9 +39,9 @@ void train(string filename, int nCards, DetectionMethod method)
 	imwrite("../Assets/deck_training.png", cardBase);
 }
 
-vector<Card> readDeckList(string filename)
+vector<Card> readDeckList(string path)
 {
-	ifstream file(filename);
+	ifstream file(path + "deck.txt");
 	stringstream stream;
 	string line, word;
 	vector<Card> deck;
@@ -81,18 +82,19 @@ vector<Card> readDeckList(string filename)
 	return deck;
 }
 
-void readDeckImage(string filename, vector<Card> &deck, DetectionMethod method)
+void readDeckImage(string path, vector<Card> &deck, DetectionMethod method)
 {
 	Mat deckImage;
 
 	if (method == Binary)
 	{
-		deckImage = imread(filename, IMREAD_GRAYSCALE);
+		deckImage = imread(path + "deck_binary.png", IMREAD_GRAYSCALE);
 	}
 
 	else if (method == Surf)
 	{
-		deckImage = imread(filename, IMREAD_COLOR);
+		deckImage = imread(path + "deck_surf.png", IMREAD_COLOR);
+		cout << endl << "Pre-processing the deck..." << endl;
 	}
 
 	if (deckImage.empty())
@@ -371,4 +373,38 @@ Card detectCard(Mat card, vector<Card> deck, DetectionMethod method)
 	}
 
 	return deck[cardIndex];
+}
+
+Mat drawCards(Mat original, vector<Card> move)
+{
+	Mat tmpCard;
+	Mat tmpImage;
+	Mat textImage = Mat::zeros(original.size(), original.type());
+
+	Point2f transformPoints[4];
+	transformPoints[0] = Point2f(0, 449);
+	transformPoints[1] = Point2f(0, 0);
+	transformPoints[2] = Point2f(449, 0);
+	transformPoints[3] = Point2f(449, 449);
+
+	for (size_t i = 0; i < move.size(); i++)
+	{
+		tmpCard = Mat::zeros(450, 450, original.type());
+		tmpImage = Mat::zeros(original.size(), original.type());
+		Point2f rectanglePoints[] = { move[i].rectangle.p1, move[i].rectangle.p2, move[i].rectangle.p3, move[i].rectangle.p4 };
+
+		string text = move[i].symbol + " " + move[i].suit;
+		Size textSize = getTextSize(text, FONT_HERSHEY_TRIPLEX, 2, 3, 0);
+		Point textPoint = Point(225 - (textSize.width / 2), 225 + (textSize.height / 2));
+		putText(tmpCard, text, textPoint, FONT_HERSHEY_TRIPLEX, 2, Scalar(0, 255, 0), 3, CV_AA);
+
+		Mat transform = getPerspectiveTransform(transformPoints, rectanglePoints);
+		warpPerspective(tmpCard, tmpImage, transform, original.size());
+		textImage += tmpImage;
+	}
+
+	original += textImage;
+	imshow("coisas", original);
+
+	return textImage;
 }

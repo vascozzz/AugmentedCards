@@ -14,20 +14,11 @@
 #include <limits>
 
 #include "Card.h"
+#include "DetectionMethod.h"
+#include "Rectangle.h"
 
 using namespace cv;
 using namespace std;
-
-enum DetectionMethod
-{
-	Binary,
-	Surf
-};
-
-struct Rectangle
-{
-	Point p1, p2, p3, p4;
-};
 
 void train(string filename, int nCards, DetectionMethod method);
 vector<Card> readDeckList(string filename);
@@ -53,3 +44,4 @@ int getSurfMatches(vector<KeyPoint> keyPoints1, Mat descriptors1, vector<KeyPoin
 void filterMatchesByAbsoluteValue(std::vector<DMatch> &matches, float maxDistance);
 Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, vector<KeyPoint> &keypointsB);
 
+Mat drawCards(Mat image, vector<Card> deck);

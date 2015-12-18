@@ -11,19 +11,10 @@
 #include <iostream>
 #include <vector>
 
-#include "Rectangle.h"
-
 using namespace std;
 using namespace cv;
 
-struct Card
+struct Rectangle
 {
-	bool isNumber;
-	string symbol;
-	string suit;
-
-	Rectangle rectangle;
-
-	Mat image, descriptors;
-	vector<KeyPoint> keyPoints;
+	Point p1, p2, p3, p4;
 };

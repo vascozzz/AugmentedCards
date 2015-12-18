@@ -4,61 +4,118 @@
 
 using namespace std;
 
-string baseAssetsPath = "../Assets/";
 
-void detectCards(string deckImagePath, string deckListPath, DetectionMethod method);
+int gameCards = 2;
+string baseAssetsPath = "../Assets/";
+string baseDeckPath = baseAssetsPath + "deck/";
+
+
+void displayIntro();
+int parseDetectionMode();
+DetectionMethod parseDetectionMethod();
+Mat parseImage(string display);
+
+void detectInImage(vector<Card> deck, DetectionMethod method);
+void detectInVideo(vector<Card> deck, DetectionMethod method);
+void detectCards(Mat image, vector<Card> deck, DetectionMethod method);
+
 void playSimpleGame(vector<Card> move);
-void displayHelp();
+
 
 int main(int argc, char** argv)
 {
-	// train(baseAssetsPath + "deck.png", 54, Surf);
-	detectCards(baseAssetsPath + "deck.txt", baseAssetsPath + "deck_binary.png", Binary);
+	displayIntro();
+
+	int detectionMode = parseDetectionMode();
+	DetectionMethod detectionMethod = parseDetectionMethod();
+
+	vector<Card> deck;
+	deck = readDeckList(baseDeckPath);
+	readDeckImage(baseDeckPath, deck, detectionMethod);
+
+	switch (detectionMode)
+	{
+	case 1:
+		detectInImage(deck, detectionMethod);
+		break;
+	case 2:
+		detectInVideo(deck, detectionMethod);
+		break;
+	default:
+		break;
+	}
+
 	waitKey(0);
 }
 
-void detectCards(string deckListPath, string deckImagePath, DetectionMethod method)
+void detectInImage(vector<Card> deck, DetectionMethod method)
 {
-	Mat image;
-	vector<Card> deck, move;
+	Mat image = parseImage("Select an image from the assets: ");
+	namedWindow("Image");
+	imshow("Image", image);
+	detectCards(image, deck, method);
+}
+
+void detectInVideo(vector<Card> deck, DetectionMethod method)
+{
+	int keyPressed = 0;
+	int captureKey = 13;
+	int escapeKey = 27;
+
+	VideoCapture cap = VideoCapture(0);
+	Mat frame;
+	namedWindow("Camera");
+
+	if (!cap.isOpened())
+	{
+		cout << "Unable to start capture!" << endl;
+		return;
+	}
+
+	while (cap.isOpened() && keyPressed != escapeKey)
+	{
+		keyPressed = waitKey(1);
+
+		if (!cap.read(frame))
+		{
+			cout << "Skipped a frame..." << endl;
+		}
+
+		if (keyPressed == captureKey)
+		{
+			detectCards(frame, deck, method);
+		}
+
+		imshow("Camera", frame);
+	}
+}
+
+void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
+{
+	vector<Card> move;
 	vector<vector<Point>> contours;
-	int nCards = 4;
 
-	// read image
-	image = imread("../Assets/4.jpg", IMREAD_COLOR);
+	contours = getContours(image, gameCards);
 
-	if (image.empty())
+	if ((int)contours.size() < gameCards)
 	{
-		cout << "Could not open or find the file." << endl;
+		cout << "Couldn't detect the number of cards required to play the game!";
 		return;
 	}
 
-	// read deck list
-	deck = readDeckList(deckListPath);
-	readDeckImage(deckImagePath, deck, method);
-
-	// card detection
-	contours = getContours(image, nCards);
-
-	if ((int)contours.size() < nCards)
-	{
-		return;
-	}
-
-	for (int i = 0; i < nCards; i++)
+	for (int i = 0; i < gameCards; i++)
 	{
 		Rectangle rectangle = getCardRectangle(contours[i]);
 		Mat perspective = getCardPerspective(image, rectangle, method);
 		Card card = detectCard(perspective, deck, method);
 
+		card.rectangle = rectangle;
 		move.push_back(card);
 		cout << "Matched with " << card.symbol << " | " << card.suit << endl;
 	}
 
 	playSimpleGame(move);
-
-	namedWindow("main");
-	imshow("main", image);
+	drawCards(image, move);
 }
 
 void playSimpleGame(vector<Card> move)
@@ -76,8 +133,118 @@ void playSimpleGame(vector<Card> move)
 	}
 }
 
-void displayHelp()
+int parseDetectionMode()
 {
-	cout << "Usage example: " << endl;
-	cout << "Available methods: " << endl;
+	int choice;
+
+	while (true)
+	{
+		cout << "Choose a mode: " << endl << endl;
+		cout << "1 - Image" << endl;
+		cout << "2 - Camera" << endl << endl;
+		cout << "> ";
+		cin >> choice;
+
+		if (cin.fail())
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << endl << "Not a number! ";
+		}
+		else if (choice <= 0 || choice > 2)
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << endl << "Not a valid option! ";
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return choice;
+}
+
+DetectionMethod parseDetectionMethod()
+{
+	int choice;
+	DetectionMethod method;
+
+	cout << endl;
+
+	while (true)
+	{
+		cout << "Choose a method: " << endl << endl;
+		cout << "1 - Binary" << endl;
+		cout << "2 - SURF" << endl << endl;
+		cout << "> ";
+		cin >> choice;
+
+		if (cin.fail())
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << endl << "Not a number! ";
+		}
+		else if (choice <= 0 || choice > 2)
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << endl << "Not a valid option! ";
+		}
+		else
+		{
+			if (choice == 1)
+			{
+				method = Binary;
+			}
+			else
+			{
+				method = Surf;
+			}
+
+			break;
+		}
+	}
+
+	return method;
+}
+
+Mat parseImage(string display)
+{
+	string filename;
+	Mat image;
+
+	cout << endl;
+
+	while (true)
+	{
+		cout << display << endl << endl;
+		cout << "> ";
+		cin >> filename;
+
+		image = imread(baseAssetsPath + filename, IMREAD_COLOR);
+
+		if (image.empty())
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << endl << "Could not open or find the image! ";
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return image;
+}
+
+void displayIntro()
+{
+	cout << "################################################################" << endl;
+	cout << "#                   Augmented Card Detection                   #" << endl;
+	cout << "################################################################" << endl;
+	cout << endl << endl;
 }
