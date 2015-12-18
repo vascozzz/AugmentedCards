@@ -15,6 +15,6 @@ private:
 public:
 	SimpleGame();
 	~SimpleGame();
-	virtual int evaluateGame(vector<Card> move);
+	virtual vector<int> evaluateGame(vector<Card> move);
 };
 

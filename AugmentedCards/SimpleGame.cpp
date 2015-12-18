@@ -36,11 +36,11 @@ int SimpleGame::getCardValue(Card card)
 	return 0;
 }
 
-int SimpleGame::evaluateGame(vector<Card> move)
+vector<int> SimpleGame::evaluateGame(vector<Card> move)
 {
+	vector<int> winners;
 	int bestVal = 0;
 	int bestCard = 0;
-	int ties = 0;
 
 	// get best card
 	for (size_t i = 0; i < move.size(); i++)
@@ -61,16 +61,9 @@ int SimpleGame::evaluateGame(vector<Card> move)
 
 		if (cardVal == bestVal)
 		{
-			ties++;
+			winners.push_back(i);
 		}
 	}
 
-	if (ties >= 2) 
-	{
-		return -ties;
-	}
-	else
-	{
-		return bestCard;
-	}
+	return winners;
 }

@@ -19,8 +19,6 @@ void detectInImage(vector<Card> deck, DetectionMethod method);
 void detectInVideo(vector<Card> deck, DetectionMethod method);
 void detectCards(Mat image, vector<Card> deck, DetectionMethod method);
 
-void playSimpleGame(vector<Card> move);
-
 
 int main(int argc, char** argv)
 {
@@ -51,7 +49,7 @@ int main(int argc, char** argv)
 void detectInImage(vector<Card> deck, DetectionMethod method)
 {
 	Mat image = parseImage("Select an image from the assets: ");
-	namedWindow("Image");
+	namedWindow("Image", WINDOW_AUTOSIZE);
 	imshow("Image", image);
 	detectCards(image, deck, method);
 }
@@ -64,7 +62,7 @@ void detectInVideo(vector<Card> deck, DetectionMethod method)
 
 	VideoCapture cap = VideoCapture(0);
 	Mat frame;
-	namedWindow("Camera");
+	namedWindow("Camera", WINDOW_AUTOSIZE);
 
 	if (!cap.isOpened())
 	{
@@ -95,6 +93,7 @@ void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
 	vector<Card> move;
 	vector<vector<Point>> contours;
 
+	// Get image contours
 	contours = getContours(image, GAME_CARDS);
 
 	if ((int)contours.size() < GAME_CARDS)
@@ -103,36 +102,29 @@ void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
 		return;
 	}
 
+	// Process cards individually
 	for (int i = 0; i < GAME_CARDS; i++)
 	{
 		Rectangle rectangle = getCardRectangleByEquation(contours[i]);
 		Mat perspective = getCardPerspective(image, rectangle, method);
 		Card card = detectCard(perspective, deck, method);
 
-		imshow("persp" + i, perspective);
-
+		card.contours = contours[i];
 		card.rectangle = rectangle;
 		move.push_back(card);
+
 		cout << "Matched with " << card.symbol << " | " << card.suit << endl;
 	}
 
-	playSimpleGame(move);
-	drawCards(image, move);
-}
-
-void playSimpleGame(vector<Card> move)
-{
+	// Evalute move
 	SimpleGame game;
-	int winner = game.evaluateGame(move);
+	vector<int> winners = game.evaluateGame(move);
 
-	if (winner < 0)
-	{
-		cout << "There was a tie between " << -winner << " players!";
-	}
-	else
-	{
-		cout << winner << " wins!";
-	}
+	// Draw final result
+	Mat detection = drawCards(image, move, winners);
+
+	namedWindow("Detection", WINDOW_AUTOSIZE);
+	imshow("Detection", image);
 }
 
 int parseDetectionMode()

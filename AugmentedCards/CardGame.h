@@ -14,6 +14,6 @@ private:
 public:
 	CardGame();
 	~CardGame();
-	virtual int evaluateGame(vector<Card> move) = 0;
+	virtual vector<int> evaluateGame(vector<Card> move) = 0;
 };
 

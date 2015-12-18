@@ -565,34 +565,84 @@ Card detectCard(Mat card, vector<Card> deck, DetectionMethod method)
 	return deck[cardIndex];
 }
 
-Mat drawCards(Mat original, vector<Card> move)
+Mat drawCards(Mat image, vector<Card> move, vector<int> winners)
 {
-	Mat tmpCard;
-	Mat tmpImage;
-	Mat textImage = Mat::zeros(original.size(), original.type());
+	for (size_t i = 0; i < move.size(); i++)
+	{
+		bool winner = find(winners.begin(), winners.end(), i) != winners.end();
 
+		image = drawCardRectangle(image, move[i]);
+		image = drawCardValue(image, move[i], winner);
+		image = drawCardContours(image, move[i], winner);		
+	}
+
+	return image;
+}
+
+Mat drawCardValue(Mat image, Card card, bool winner)
+{
+	string text = card.symbol + " " + card.suit;
+	Scalar color = winner ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
+
+	Mat tmpCard = Mat::zeros(450, 450, image.type());
+	Mat tmpImage = Mat::zeros(image.size(), image.type());
+
+	Point2f rectanglePoints[] = { card.rectangle.p1, card.rectangle.p2, card.rectangle.p3, card.rectangle.p4 };
 	Point2f transformPoints[4];
 	transformPoints[0] = Point2f(0, 449);
 	transformPoints[1] = Point2f(0, 0);
 	transformPoints[2] = Point2f(449, 0);
 	transformPoints[3] = Point2f(449, 449);
 
-	for (size_t i = 0; i < move.size(); i++)
+	tmpCard = drawTextCentered(tmpCard, Point(225, 225), text, color);
+
+	Mat transform = getPerspectiveTransform(transformPoints, rectanglePoints);
+	warpPerspective(tmpCard, tmpImage, transform, image.size());
+	image += tmpImage;
+
+	return image;
+}
+
+Mat drawTextCentered(Mat image, Point center, string text, Scalar color)
+{
+	int fontFace = FONT_HERSHEY_TRIPLEX;
+	int scale = 2;
+	int thickness = 3;
+
+	Size textSize = getTextSize(text, fontFace, scale, thickness, 0);
+	Point textPoint = Point(center.x - (textSize.width / 2), center.y + (textSize.height / 2));
+	putText(image, text, textPoint, fontFace, scale, color, thickness, CV_AA);
+
+	return image;
+}
+
+Mat drawCardContours(Mat image, Card card, bool winner)
+{
+	Scalar color = winner ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
+	int thickness = 3;
+
+	for (int i = 0; i < card.contours.size(); i++)
 	{
-		tmpCard = Mat::zeros(450, 450, original.type());
-		tmpImage = Mat::zeros(original.size(), original.type());
-		Point2f rectanglePoints[] = { move[i].rectangle.p1, move[i].rectangle.p2, move[i].rectangle.p3, move[i].rectangle.p4 };
-
-		string text = move[i].symbol + " " + move[i].suit;
-		Size textSize = getTextSize(text, FONT_HERSHEY_TRIPLEX, 2, 3, 0);
-		Point textPoint = Point(225 - (textSize.width / 2), 225 + (textSize.height / 2));
-		putText(tmpCard, text, textPoint, FONT_HERSHEY_TRIPLEX, 2, Scalar(0, 255, 0), 3, CV_AA);
-
-		Mat transform = getPerspectiveTransform(transformPoints, rectanglePoints);
-		warpPerspective(tmpCard, tmpImage, transform, original.size());
-		textImage += tmpImage;
+		line(image, card.contours[i], card.contours[(i + 1) % card.contours.size()], color, thickness, CV_AA);
 	}
 
-	original += textImage;
-	return original;
+	return image;
+}
+
+Mat drawCardRectangle(Mat image, Card card)
+{
+	Point2f rectanglePoints[] = { card.rectangle.p1, card.rectangle.p2, card.rectangle.p3, card.rectangle.p4 };
+
+	Scalar color = Scalar(255, 0, 255);
+	double circleRadius = 6;
+	int circleThickness = 2;
+	int lineThickness = 1;
+
+	for (int i = 0; i < 4; i++)
+	{
+		circle(image, rectanglePoints[i], circleRadius, color, circleThickness, CV_AA);
+		line(image, rectanglePoints[i], rectanglePoints[(i + 1) % 4], color, lineThickness, CV_AA);
+	}
+
+	return image;
 }

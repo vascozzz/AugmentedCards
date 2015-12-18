@@ -22,6 +22,7 @@ struct Card
 	string symbol;
 	string suit;
 
+	vector<Point> contours;
 	Rectangle rectangle;
 
 	Mat image, descriptors;

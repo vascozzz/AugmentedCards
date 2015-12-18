@@ -48,4 +48,8 @@ int getSurfMatches(vector<KeyPoint> keyPoints1, Mat descriptors1, vector<KeyPoin
 void filterMatchesByAbsoluteValue(std::vector<DMatch> &matches, float maxDistance);
 Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, vector<KeyPoint> &keypointsB);
 
-Mat drawCards(Mat image, vector<Card> deck);
+Mat drawCards(Mat image, vector<Card> move, vector<int> winners);
+Mat drawCardValue(Mat image, Card card, bool winner);
+Mat drawTextCentered(Mat image, Point center, string text, Scalar color);
+Mat drawCardContours(Mat image, Card card, bool winner);
+Mat drawCardRectangle(Mat image, Card card);
