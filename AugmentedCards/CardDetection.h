@@ -15,6 +15,7 @@
 
 #include "Card.h"
 #include "DetectionMethod.h"
+#include "Lines.h"
 #include "Rectangle.h"
 
 using namespace cv;
@@ -28,6 +29,9 @@ bool isNumber(string number);
 bool compareContourArea(vector<Point> v1, vector<Point> v2);
 void appendToMat(Mat image, Mat section, int x, int y);
 float calculateDistance(Point2f p1, Point2f p2);
+double getAngleBetweenPoints(Point pt1, Point pt2);
+Rectangle getCardRectangleByDiagonals(vector<Point> contour);
+Rectangle getCardRectangleByEquation(vector<Point> contour);
 
 void preprocess(Mat &image);
 vector<vector<Point>> getContours(Mat image, int nCards);

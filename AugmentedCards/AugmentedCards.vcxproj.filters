@@ -47,5 +47,8 @@
     <ClInclude Include="DetectionMethod.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Lines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

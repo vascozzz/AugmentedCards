@@ -5,9 +5,9 @@
 using namespace std;
 
 
-int gameCards = 2;
-string baseAssetsPath = "../Assets/";
-string baseDeckPath = baseAssetsPath + "deck/";
+const int GAME_CARDS = 4;
+const string BASE_ASSETS_PATH = "../Assets/";
+const string BASE_DECK_PATH = BASE_ASSETS_PATH + "deck/";
 
 
 void displayIntro();
@@ -30,8 +30,8 @@ int main(int argc, char** argv)
 	DetectionMethod detectionMethod = parseDetectionMethod();
 
 	vector<Card> deck;
-	deck = readDeckList(baseDeckPath);
-	readDeckImage(baseDeckPath, deck, detectionMethod);
+	deck = readDeckList(BASE_DECK_PATH);
+	readDeckImage(BASE_DECK_PATH, deck, detectionMethod);
 
 	switch (detectionMode)
 	{
@@ -95,19 +95,21 @@ void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
 	vector<Card> move;
 	vector<vector<Point>> contours;
 
-	contours = getContours(image, gameCards);
+	contours = getContours(image, GAME_CARDS);
 
-	if ((int)contours.size() < gameCards)
+	if ((int)contours.size() < GAME_CARDS)
 	{
 		cout << "Couldn't detect the number of cards required to play the game!";
 		return;
 	}
 
-	for (int i = 0; i < gameCards; i++)
+	for (int i = 0; i < GAME_CARDS; i++)
 	{
-		Rectangle rectangle = getCardRectangle(contours[i]);
+		Rectangle rectangle = getCardRectangleByEquation(contours[i]);
 		Mat perspective = getCardPerspective(image, rectangle, method);
 		Card card = detectCard(perspective, deck, method);
+
+		imshow("persp" + i, perspective);
 
 		card.rectangle = rectangle;
 		move.push_back(card);
@@ -224,7 +226,7 @@ Mat parseImage(string display)
 		cout << "> ";
 		cin >> filename;
 
-		image = imread(baseAssetsPath + filename, IMREAD_COLOR);
+		image = imread(BASE_ASSETS_PATH + filename, IMREAD_COLOR);
 
 		if (image.empty())
 		{

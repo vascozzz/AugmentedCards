@@ -124,6 +124,7 @@
     <ClInclude Include="CardDetection.h" />
     <ClInclude Include="CardGame.h" />
     <ClInclude Include="DetectionMethod.h" />
+    <ClInclude Include="Lines.h" />
     <ClInclude Include="Rectangle.h" />
     <ClInclude Include="SimpleGame.h" />
   </ItemGroup>

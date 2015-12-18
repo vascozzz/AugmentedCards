@@ -165,6 +165,21 @@ float calculateDistance(Point2f p1, Point2f p2)
 	return sqrt((diffY * diffY) + (diffX * diffX));
 }
 
+double getAngleBetweenPoints(Point pt1, Point pt2)
+{
+	double xDiff = pt2.x - pt1.x;
+	double yDiff = pt2.y - pt1.y;
+
+	if (atan2(yDiff, xDiff) < 0)
+	{
+		return atan2(yDiff, xDiff) + 2 * CV_PI;
+	}
+	else
+	{
+		return atan2(yDiff, xDiff);
+	}
+}
+
 void preprocess(Mat &image)
 {
 	cvtColor(image, image, CV_BGR2GRAY);
@@ -212,6 +227,181 @@ Rectangle getCardRectangle(vector<Point> contour)
 	}
 
 	return Rectangle{ rectPoints[0], rectPoints[1], rectPoints[2], rectPoints[3] };
+}
+
+Rectangle getCardRectangleByDiagonals(vector<Point> contour)
+{
+	vector<Point> poly;
+	approxPolyDP(contour, poly, 1, true);
+
+	set<Line, CompareLineDistance> sortByDistance;
+
+	for (int i = 0; i < poly.size() - 1; i++)
+	{
+		for (int j = i + 1; j < poly.size(); j++)
+		{
+			Line line;
+			line.p1 = poly[i];
+			line.p2 = poly[j];
+			line.distance = calculateDistance(line.p1, line.p2);
+
+			sortByDistance.insert(line);
+		}
+	}
+
+	set<Line>::reverse_iterator it;
+	it = sortByDistance.rbegin();
+
+	Line l1 = *it++;
+	Line l2;
+	float l1a = getAngleBetweenPoints(l1.p1, l1.p2);
+
+	while (it != sortByDistance.rend())
+	{
+		Line line = *it++;
+		float linea = getAngleBetweenPoints(line.p1, line.p2);
+
+		float angDiff = abs(linea - l1a);
+
+		if (angDiff > (CV_PI / 3) && angDiff < (2 * CV_PI / 3))
+		{
+			l2 = line;
+			break;
+		}
+	}
+
+	return Rectangle{ l1.p1, l2.p1, l1.p2, l2.p2 };
+}
+
+Rectangle getCardRectangleByEquation(vector<Point> contour)
+{
+	//reduce the number of points
+	vector<Point> poly;
+
+	approxPolyDP(contour, poly, 3, true);
+	poly.push_back(poly[0]); //this is done so that last point and first point are considered a line
+
+	//create a sort-by-distance set of Line
+	set<Line, CompareLineDistance> sortbydistance;
+
+	//for each consequent two points, create a Line and add it
+	for (int i = 0; i < poly.size() - 1; i++)
+	{
+		Point2f p1 = poly[i];
+		Point2f p2 = poly[i + 1];
+
+		float distance = calculateDistance(p1, p2);
+
+		Line line;
+		line.seq = i;
+		line.p1 = p1;
+		line.p2 = p2;
+		line.distance = distance;
+
+		sortbydistance.insert(line);
+	}
+
+	//create a sort-by-sequence set of Line
+	set<Line, CompareLineSequence> sortbysequence;
+
+	//get the best 4 lines (card sides) and add them
+	set<Line>::iterator dstIt;
+	dstIt = sortbydistance.end();
+
+	for (int i = 0; i < 4; i++)
+	{
+		sortbysequence.insert(*(--dstIt));
+	}
+
+	// we will need to sequently calculate intersections (1,2) (2,3) (3,4) (4,1)
+	// so to make it easier:
+	// store lines in a vector
+	// add 1 in the end too
+	vector<Point2f> cardcorners;
+
+	vector<Line> cardsides;
+	set<Line>::iterator seqIt;
+
+	for (seqIt = sortbysequence.begin(); seqIt != sortbysequence.end(); seqIt++)
+		cardsides.push_back(*(seqIt));
+
+	cardsides.push_back(cardsides[0]);
+
+	for (int i = 0; i < cardsides.size() - 1; i++)
+	{
+		Line l1 = cardsides[i];
+		Line l2 = cardsides[i + 1];
+
+		//calculate l1 equation
+		bool l1v = false;
+		float l1x;
+		float l1m;
+		float l1b;
+
+		if ((l1.p2.x - l1.p1.x) == 0) //vertical line
+		{
+			l1x = l1.p1.x;
+			l1v = true;
+		}
+		else
+		{
+			l1m = (l1.p2.y - l1.p1.y) / (l1.p2.x - l1.p1.x);
+			l1b = (l1.p1.y - l1m * l1.p1.x);
+		}
+
+		//calculate l2 equation
+		bool l2v = false;
+		float l2x;
+		float l2m;
+		float l2b;
+
+		if ((l2.p2.x - l2.p1.x) == 0) //vertical line
+		{
+			l2x = l2.p1.x;
+			l2v = true;
+		}
+		else
+		{
+			l2m = (l2.p2.y - l2.p1.y) / (l2.p2.x - l2.p1.x);
+			l2b = (l2.p1.y - l2m * l2.p1.x);
+		}
+
+		//calculate intersection
+		float x;
+		float y;
+
+		if (!l1v && !l2v) //no verticals
+		{
+			x = (l2b - l1b) / (l1m - l2m);
+			y = l1m*x + l1b;
+		}
+		else if (l1v) //l1 vertical
+		{
+			x = l1x;
+			y = l2m*x + l2b;
+		}
+		else if (l2v) //l2 vertical
+		{
+			x = l2x;
+			y = l1m*x + l1b;
+		}
+
+		cardcorners.push_back(Point2f(x, y));
+	}
+
+	//Create a rectangle
+	Rectangle cardRectangle = Rectangle{ cardcorners[0], cardcorners[1], cardcorners[2], cardcorners[3] };
+
+	if (calculateDistance(cardRectangle.p1, cardRectangle.p2) < calculateDistance(cardRectangle.p2, cardRectangle.p3))
+	{
+		Point2f p1 = cardRectangle.p1;
+		cardRectangle.p1 = cardRectangle.p2;
+		cardRectangle.p2 = cardRectangle.p3;
+		cardRectangle.p3 = cardRectangle.p4;
+		cardRectangle.p4 = p1;
+	}
+
+	return cardRectangle;
 }
 
 Mat getCardPerspective(Mat image, Rectangle rectangle, DetectionMethod method)
@@ -404,7 +594,5 @@ Mat drawCards(Mat original, vector<Card> move)
 	}
 
 	original += textImage;
-	imshow("coisas", original);
-
-	return textImage;
+	return original;
 }
