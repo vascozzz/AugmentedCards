@@ -53,3 +53,4 @@ Mat drawCardValue(Mat image, Card card, bool winner);
 Mat drawTextCentered(Mat image, Point center, string text, Scalar color);
 Mat drawCardContours(Mat image, Card card, bool winner);
 Mat drawCardRectangle(Mat image, Card card);
+Mat resizeWithLimits(Mat image, int width, int height);

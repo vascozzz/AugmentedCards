@@ -646,3 +646,31 @@ Mat drawCardRectangle(Mat image, Card card)
 
 	return image;
 }
+
+Mat resizeWithLimits(Mat image, int width, int height)
+{
+	if (image.size().width <= width && image.size().height <= height)
+	{
+		return image;
+	}
+
+	float wRatio = (float)image.size().width / width;
+	float hRatio = (float)image.size().height / height;
+	int newWidth;
+	int newHeight;
+	Mat resized;
+
+	if (wRatio >= hRatio)
+	{
+		newWidth = width;
+		newHeight = image.size().height / wRatio;
+	}
+	else
+	{
+		newHeight = height;
+		newWidth = image.size().width / hRatio;
+	}
+
+	resize(image, resized, Size(newWidth, newHeight));
+	return resized;
+}

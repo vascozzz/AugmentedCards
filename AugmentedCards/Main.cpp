@@ -4,17 +4,15 @@
 
 using namespace std;
 
-
 const int GAME_CARDS = 4;
+
 const string BASE_ASSETS_PATH = "../Assets/";
 const string BASE_DECK_PATH = BASE_ASSETS_PATH + "deck/";
-
 
 void displayIntro();
 int parseDetectionMode();
 DetectionMethod parseDetectionMethod();
 Mat parseImage(string display);
-
 void detectInImage(vector<Card> deck, DetectionMethod method);
 void detectInVideo(vector<Card> deck, DetectionMethod method);
 void detectCards(Mat image, vector<Card> deck, DetectionMethod method);
@@ -49,8 +47,11 @@ int main(int argc, char** argv)
 void detectInImage(vector<Card> deck, DetectionMethod method)
 {
 	Mat image = parseImage("Select an image from the assets: ");
+	image = resizeWithLimits(image, 1000, 700);
+
 	namedWindow("Image", WINDOW_AUTOSIZE);
 	imshow("Image", image);
+
 	detectCards(image, deck, method);
 }
 
@@ -113,7 +114,7 @@ void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
 		card.rectangle = rectangle;
 		move.push_back(card);
 
-		cout << "Matched with " << card.symbol << " | " << card.suit << endl;
+		cout << endl << "Matched with " << card.symbol << " | " << card.suit << endl;
 	}
 
 	// Evalute move
