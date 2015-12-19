@@ -103,7 +103,7 @@ void readDeckImage(string path, vector<Card> &deck, DetectionMethod method)
 		exit(-1);
 	}
 
-	SurfFeatureDetector detector(400);
+	SurfFeatureDetector detector(SURF_HESSIAN);
 	SurfDescriptorExtractor extractor;
 
 	for (size_t i = 0; i < deck.size(); i++)
@@ -154,6 +154,22 @@ void appendToMat(Mat image, Mat section, int x, int y)
 		{
 			Vec3b pixel = section.at<Vec3b>(i, j);
 			image.at<Vec3b>(i + y, j + x) = pixel;
+		}
+	}
+}
+
+void copyTransparent(Mat &image1, Mat image2)
+{
+	for (int i = 0; i < image2.size().height; i++)
+	{
+		for (int j = 0; j < image2.size().width; j++)
+		{
+			Vec3b pixel = image2.at<Vec3b>(i, j);
+
+			if (pixel[0] != 0 || pixel[1] || pixel[2] != 0)
+			{
+				image1.at<Vec3b>(i, j) = pixel;
+			}
 		}
 	}
 }
@@ -441,7 +457,7 @@ void filterMatchesByAbsoluteValue(vector<DMatch> &matches, float maxDistance)
 {
 	vector<DMatch> filteredMatches;
 
-	for (size_t i = 0; i<matches.size(); i++)
+	for (size_t i = 0; i < matches.size(); i++)
 	{
 		if (matches[i].distance < maxDistance)
 		{
@@ -452,7 +468,7 @@ void filterMatchesByAbsoluteValue(vector<DMatch> &matches, float maxDistance)
 	matches = filteredMatches;
 }
 
-Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, vector<KeyPoint> &keypointsB)
+Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, vector<KeyPoint> &keypointsB, double threshold)
 {
 	Mat homography;
 	vector<DMatch> filteredMatches;
@@ -461,7 +477,7 @@ Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, v
 	{
 		vector<Point2f> srcPoints;
 		vector<Point2f> dstPoints;
-		for (size_t i = 0; i<matches.size(); i++)
+		for (size_t i = 0; i < matches.size(); i++)
 		{
 
 			srcPoints.push_back(keypointsA[matches[i].queryIdx].pt);
@@ -469,12 +485,14 @@ Mat filterMatchesRANSAC(vector<DMatch> &matches, vector<KeyPoint> &keypointsA, v
 		}
 
 		Mat mask;
-		homography = findHomography(srcPoints, dstPoints, CV_RANSAC, 1.0, mask);
+		homography = findHomography(srcPoints, dstPoints, CV_RANSAC, threshold, mask);
 
 		for (int i = 0; i<mask.rows; i++)
 		{
 			if (mask.ptr<uchar>(i)[0] == 1)
+			{ 
 				filteredMatches.push_back(matches[i]);
+			}
 		}
 	}
 
@@ -489,8 +507,8 @@ int getSurfMatches(vector<KeyPoint> keyPoints1, Mat descriptors1, vector<KeyPoin
 	vector<DMatch> matches;
 
 	matcher.match(descriptors1, descriptors2, matches);
-	filterMatchesByAbsoluteValue(matches, maxDist);
-	filterMatchesRANSAC(matches, keyPoints1, keyPoints2);
+	filterMatchesByAbsoluteValue(matches, SURF_MAX_DIST);
+	filterMatchesRANSAC(matches, keyPoints1, keyPoints2, RANSAC_THRESHOLD);
 
 	return (int)matches.size();
 }
@@ -522,7 +540,7 @@ int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
 	int bestMatches = -1;
 	int bestIndex;
 
-	SurfFeatureDetector detector(400);
+	SurfFeatureDetector detector(SURF_HESSIAN);
 	SurfDescriptorExtractor extractor;
 	vector<KeyPoint> keyPoints, keyPointsFlipped;
 	Mat descriptors, descriptorsFlipped;
@@ -533,13 +551,10 @@ int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
 	for (size_t i = 0; i < deck.size(); i++)
 	{
 		int matches = getSurfMatches(keyPoints, descriptors, deck[i].keyPoints, deck[i].descriptors);
-		int flipedMatches = getSurfMatches(keyPointsFlipped, descriptorsFlipped, deck[i].keyPoints, deck[i].descriptors);
 
-		int maxMatches = max(matches, flipedMatches);
-
-		if (maxMatches > bestMatches)
+		if (matches > bestMatches)
 		{
-			bestMatches = maxMatches;
+			bestMatches = matches;
 			bestIndex = i;
 		}
 	}
@@ -598,8 +613,8 @@ Mat drawCardValue(Mat image, Card card, bool winner)
 
 	Mat transform = getPerspectiveTransform(transformPoints, rectanglePoints);
 	warpPerspective(tmpCard, tmpImage, transform, image.size());
-	image += tmpImage;
-
+	
+	copyTransparent(image, tmpImage);
 	return image;
 }
 
@@ -663,12 +678,12 @@ Mat resizeWithLimits(Mat image, int width, int height)
 	if (wRatio >= hRatio)
 	{
 		newWidth = width;
-		newHeight = image.size().height / wRatio;
+		newHeight = (int)(image.size().height / wRatio);
 	}
 	else
 	{
 		newHeight = height;
-		newWidth = image.size().width / hRatio;
+		newWidth = (int)(image.size().width / hRatio);
 	}
 
 	resize(image, resized, Size(newWidth, newHeight));
