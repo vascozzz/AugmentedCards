@@ -6,6 +6,11 @@
 
 using namespace std;
 
+/*
+ * Abstract representation of a game. 
+ * All games should be able to evaluate a move (multiple cards)
+   and return a vector with the indexes of the winning cards.
+ */
 class CardGame
 {
 private:

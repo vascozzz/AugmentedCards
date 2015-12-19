@@ -7,6 +7,9 @@
 
 using namespace std;
 
+/*
+ * Simple game implementation. Highest value, regardless of suit, wins.
+ */
 class SimpleGame : public CardGame
 {
 private:

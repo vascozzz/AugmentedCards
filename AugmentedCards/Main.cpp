@@ -9,14 +9,26 @@ const int GAME_CARDS = 4;
 const string BASE_ASSETS_PATH = "../Assets/";
 const string BASE_DECK_PATH = BASE_ASSETS_PATH + "deck/";
 
+/* Displays the initial menu. */
 void displayIntro();
-int parseDetectionMode();
-DetectionMethod parseDetectionMethod();
-Mat parseImage(string display);
-void detectInImage(vector<Card> deck, DetectionMethod method);
-void detectInVideo(vector<Card> deck, DetectionMethod method);
-void detectCards(Mat image, vector<Card> deck, DetectionMethod method);
 
+/* Returns the detection mode requested by the user. */
+int parseDetectionMode();
+
+/* Returns the detection method requested by the user. */
+DetectionMethod parseDetectionMethod();
+
+/* Returns an image requested by the user. */
+Mat parseImage(string display);
+
+/* Attempts to detect cards in a given image. */
+void detectInImage(vector<Card> deck, DetectionMethod method);
+
+/* Attempts to detect cards using a camera. */
+void detectInVideo(vector<Card> deck, DetectionMethod method);
+
+/* Attemps to detect cards in a given frame. Draws the results for a simple game. */
+void detectCards(Mat image, vector<Card> deck, DetectionMethod method);
 
 int main(int argc, char** argv)
 {
@@ -71,6 +83,8 @@ void detectInVideo(vector<Card> deck, DetectionMethod method)
 		return;
 	}
 
+	cout << endl << "Press ENTER to capture a frame, and ESC to exit at any time." << endl;
+
 	while (cap.isOpened() && keyPressed != escapeKey)
 	{
 		keyPressed = waitKey(1);
@@ -95,11 +109,11 @@ void detectCards(Mat image, vector<Card> deck, DetectionMethod method)
 	vector<vector<Point>> contours;
 
 	// Get image contours
-	contours = getContours(image, GAME_CARDS);
+	contours = getContours(image);
 
 	if ((int)contours.size() < GAME_CARDS)
 	{
-		cout << "Couldn't detect the number of cards required to play the game!";
+		cout << endl << "Couldn't detect the number of cards required to play the game!";
 		return;
 	}
 
@@ -134,7 +148,7 @@ int parseDetectionMode()
 
 	while (true)
 	{
-		cout << "Choose a mode: " << endl << endl;
+		cout << "Select a detection mode: " << endl << endl;
 		cout << "1 - Image" << endl;
 		cout << "2 - Camera" << endl << endl;
 		cout << "> ";
@@ -170,9 +184,9 @@ DetectionMethod parseDetectionMethod()
 
 	while (true)
 	{
-		cout << "Choose a method: " << endl << endl;
-		cout << "1 - Binary" << endl;
-		cout << "2 - SURF" << endl << endl;
+		cout << "Select a detection method: " << endl << endl;
+		cout << "1 - Binary (fast)" << endl;
+		cout << "2 - SURF (slower, better results)" << endl << endl;
 		cout << "> ";
 		cin >> choice;
 
@@ -237,9 +251,20 @@ Mat parseImage(string display)
 }
 
 void displayIntro()
-{
-	cout << "################################################################" << endl;
-	cout << "#                   Augmented Card Detection                   #" << endl;
-	cout << "################################################################" << endl;
-	cout << endl << endl;
+{       
+	cout << "                ___                                    __           __ " << endl;
+	cout << "               /   | __  ______ _____ ___  ___  ____  / /____  ____/ / " << endl;
+	cout << "              / /| |/ / / / __ '/ __ '__ \\/ _ \\/ __ \\/ __/ _ \\/ __  /  " << endl;
+	cout << "             / ___ / /_/ / /_/ / / / / / /  __/ / / / /_/  __/ /_/ /   " << endl;
+	cout << "            /_/  |_\\__,_/\\__, /_/ /_/ /_/\\___/_/ /_/\\__/\\___/\\__,_/    " << endl;
+	cout << "                        /____/                                         " << endl;
+
+	cout << "                          ______               __    " << endl;
+	cout << "                         / ____/___ __________/ /____" << endl;
+	cout << "                        / /   / __ '/ ___/ __  / ___/" << endl;
+	cout << "                       / /___/ /_/ / /  / /_/ (__  ) " << endl;
+	cout << "                       \\____/\\__,_/_/   \\__,_/____/ " << endl;
+
+	cout << "\n________________________________________________________________________________\n\n";
+	cout << "Welcome! This application will assist you while playing a simple card game.\n\n";
 }

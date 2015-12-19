@@ -42,7 +42,7 @@ vector<int> SimpleGame::evaluateGame(vector<Card> move)
 	int bestVal = 0;
 	int bestCard = 0;
 
-	// get best card
+	// Get winning card
 	for (size_t i = 0; i < move.size(); i++)
 	{
 		int cardVal = getCardValue(move[i]);
@@ -54,7 +54,7 @@ vector<int> SimpleGame::evaluateGame(vector<Card> move)
 		}
 	}
 
-	// check for tie
+	// Check for ties
 	for (size_t i = 0; i < move.size(); i++)
 	{
 		int cardVal = getCardValue(move[i]);

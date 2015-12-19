@@ -10,8 +10,9 @@ void train(string filename, int nCards, DetectionMethod method)
 		exit(-1);
 	}
 
+	// Get contours for all cards
 	Mat cardBase = Mat::zeros(Size(450 * nCards, 450), CV_8UC3);
-	vector<vector<Point>> contours = getContours(deck, nCards);
+	vector<vector<Point>> contours = getContours(deck);
 
 	if ((int)contours.size() < nCards)
 	{
@@ -19,23 +20,16 @@ void train(string filename, int nCards, DetectionMethod method)
 		exit(-1);
 	}
 
+	// Append each card to a single image (deck)
 	for (int i = 0; i < nCards; i++)
 	{
 		Rectangle rectangle = getCardRectangle(contours[i]);
-		Mat perspective;
-
-		if (method == Binary)
-		{
-			perspective = getCardPerspective(deck, rectangle, Binary);
-		}
-		else if (method == Surf)
-		{
-			perspective = getCardPerspective(deck, rectangle, Surf);
-		}
+		Mat perspective = getCardPerspective(deck, rectangle, Surf);
 
 		appendToMat(cardBase, perspective, 450 * i, 0);
 	}
 
+	// Save deck for later access
 	imwrite("../Assets/deck_training.png", cardBase);
 }
 
@@ -53,12 +47,13 @@ vector<Card> readDeckList(string path)
 		exit(-1);
 	}
 
+	// Each line should contain a single card
 	while (getline(file, line))
 	{
 		stream = stringstream(line);
 		stream >> word;
 
-		// numbers / symbols
+		// Values should be separated by spaces, with the first one being the number / symbol
 		card.symbol = word;
 
 		if (isNumber(word))
@@ -70,11 +65,10 @@ vector<Card> readDeckList(string path)
 			card.isNumber = false;
 		}
 
-		// suits
+		// And the second one being the suit
 		stream >> word;
 		card.suit = word;
 
-		// cards
 		deck.push_back(card);
 	}
 
@@ -86,11 +80,13 @@ void readDeckImage(string path, vector<Card> &deck, DetectionMethod method)
 {
 	Mat deckImage;
 
+	// The binary deck is stored after a pre-processing phase, in black and white
 	if (method == Binary)
 	{
 		deckImage = imread(path + "deck_binary.png", IMREAD_GRAYSCALE);
 	}
 
+	// The SURF deck is an image containing all the cards, with no previous processing
 	else if (method == Surf)
 	{
 		deckImage = imread(path + "deck_surf.png", IMREAD_COLOR);
@@ -106,11 +102,13 @@ void readDeckImage(string path, vector<Card> &deck, DetectionMethod method)
 	SurfFeatureDetector detector(SURF_HESSIAN);
 	SurfDescriptorExtractor extractor;
 
+	// Append each card, as an image, to the existing deck
 	for (size_t i = 0; i < deck.size(); i++)
 	{
 		Mat card = deckImage(Rect(i * 450, 0, 450, 450));
 		deck[i].image = card;
 
+		// If using the SURF method, keypoints and descriptors should only be processed once and stored for later use
 		if (method == Surf)
 		{
 			vector<KeyPoint> keyPoints;
@@ -141,7 +139,6 @@ bool isNumber(string number)
 
 bool compareContourArea(vector<Point> v1, vector<Point> v2)
 {
-	// second parameter controls the orientation / closed section
 	// "true" avoids duplicates when sorting
 	return contourArea(v1, true) > contourArea(v2, true);
 }
@@ -166,7 +163,7 @@ void copyTransparent(Mat &image1, Mat image2)
 		{
 			Vec3b pixel = image2.at<Vec3b>(i, j);
 
-			if (pixel[0] != 0 || pixel[1] || pixel[2] != 0)
+			if (pixel[0] != 0 || pixel[1] != 0|| pixel[2] != 0)
 			{
 				image1.at<Vec3b>(i, j) = pixel;
 			}
@@ -196,7 +193,7 @@ double getAngleBetweenPoints(Point pt1, Point pt2)
 	}
 }
 
-void preprocess(Mat &image)
+void binaryPreprocess(Mat &image)
 {
 	cvtColor(image, image, CV_BGR2GRAY);
 	GaussianBlur(image, image, Size(5, 5), 2);
@@ -204,23 +201,23 @@ void preprocess(Mat &image)
 	adaptiveThreshold(image, image, 255, 1, 1, 11, 1);
 }
 
-vector<vector<Point>> getContours(Mat image, int nCards)
+vector<vector<Point>> getContours(Mat image)
 {
 	Mat processing;
 	vector<Vec4i> hierarchy;
 	vector<vector<Point>> contours;
 	vector<Point2f[4]> rectangles;
 
-	// grayscale, blur, threshold
+	// Grayscale, blur, threshold
 	cvtColor(image, processing, CV_BGR2GRAY);
 	GaussianBlur(processing, processing, Size(1, 1), 1000);
 	threshold(processing, processing, 120, 255, THRESH_BINARY);
 
-	// edge detection and contours
+	// Edge detection and contours
 	Canny(processing, processing, 0, 60, 3);
 	findContours(processing, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
-	// sorting by largest area
+	// Sorting by largest area
 	sort(contours.begin(), contours.end(), compareContourArea);
 
 	return contours;
@@ -233,6 +230,7 @@ Rectangle getCardRectangle(vector<Point> contour)
 
 	rotatedRect.points(rectPoints);
 
+	// Order corners by largest side
 	if (calculateDistance(rectPoints[0], rectPoints[1]) < calculateDistance(rectPoints[1], rectPoints[2]))
 	{
 		Point2f p0 = rectPoints[0];
@@ -291,16 +289,16 @@ Rectangle getCardRectangleByDiagonals(vector<Point> contour)
 
 Rectangle getCardRectangleByEquation(vector<Point> contour)
 {
-	//reduce the number of points
+	// Reduce the number of points
 	vector<Point> poly;
 
 	approxPolyDP(contour, poly, 3, true);
-	poly.push_back(poly[0]); //this is done so that last point and first point are considered a line
+	poly.push_back(poly[0]); // this is done so that last point and first point are considered a line
 
-	//create a sort-by-distance set of Line
+	// Create a sort-by-distance set of Line
 	set<Line, CompareLineDistance> sortbydistance;
 
-	//for each consequent two points, create a Line and add it
+	// For each consequent two points, create a Line and add it
 	for (int i = 0; i < poly.size() - 1; i++)
 	{
 		Point2f p1 = poly[i];
@@ -317,10 +315,10 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 		sortbydistance.insert(line);
 	}
 
-	//create a sort-by-sequence set of Line
+	// Create a sort-by-sequence set of Line
 	set<Line, CompareLineSequence> sortbysequence;
 
-	//get the best 4 lines (card sides) and add them
+	// Get the best 4 lines (card sides) and add them
 	set<Line>::iterator dstIt;
 	dstIt = sortbydistance.end();
 
@@ -329,10 +327,10 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 		sortbysequence.insert(*(--dstIt));
 	}
 
-	// we will need to sequently calculate intersections (1,2) (2,3) (3,4) (4,1)
-	// so to make it easier:
-	// store lines in a vector
-	// add 1 in the end too
+	// We will need to sequently calculate intersections (1,2) (2,3) (3,4) (4,1)
+	// So, in order to make it easier:
+	// - store lines in a vector
+	// - add 1 in the end too
 	vector<Point2f> cardcorners;
 
 	vector<Line> cardsides;
@@ -348,13 +346,13 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 		Line l1 = cardsides[i];
 		Line l2 = cardsides[i + 1];
 
-		//calculate l1 equation
+		// Calculate l1 equation
 		bool l1v = false;
 		float l1x;
 		float l1m;
 		float l1b;
 
-		if ((l1.p2.x - l1.p1.x) == 0) //vertical line
+		if ((l1.p2.x - l1.p1.x) == 0) // vertical line
 		{
 			l1x = l1.p1.x;
 			l1v = true;
@@ -365,13 +363,13 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 			l1b = (l1.p1.y - l1m * l1.p1.x);
 		}
 
-		//calculate l2 equation
+		// Calculate l2 equation
 		bool l2v = false;
 		float l2x;
 		float l2m;
 		float l2b;
 
-		if ((l2.p2.x - l2.p1.x) == 0) //vertical line
+		if ((l2.p2.x - l2.p1.x) == 0) // vertical line
 		{
 			l2x = l2.p1.x;
 			l2v = true;
@@ -382,21 +380,21 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 			l2b = (l2.p1.y - l2m * l2.p1.x);
 		}
 
-		//calculate intersection
+		// Calculate intersection
 		float x;
 		float y;
 
-		if (!l1v && !l2v) //no verticals
+		if (!l1v && !l2v) // no verticals
 		{
 			x = (l2b - l1b) / (l1m - l2m);
 			y = l1m*x + l1b;
 		}
-		else if (l1v) //l1 vertical
+		else if (l1v) // l1 vertical
 		{
 			x = l1x;
 			y = l2m*x + l2b;
 		}
-		else if (l2v) //l2 vertical
+		else if (l2v) // l2 vertical
 		{
 			x = l2x;
 			y = l1m*x + l1b;
@@ -405,7 +403,7 @@ Rectangle getCardRectangleByEquation(vector<Point> contour)
 		cardcorners.push_back(Point2f(x, y));
 	}
 
-	//Create a rectangle
+	// Create a rectangle
 	Rectangle cardRectangle = Rectangle{ cardcorners[0], cardcorners[1], cardcorners[2], cardcorners[3] };
 
 	if (calculateDistance(cardRectangle.p1, cardRectangle.p2) < calculateDistance(cardRectangle.p2, cardRectangle.p3))
@@ -426,17 +424,20 @@ Mat getCardPerspective(Mat image, Rectangle rectangle, DetectionMethod method)
 	Point2f transformPoints[4];
 	Point2f rectanglePoints[] = { rectangle.p1, rectangle.p2, rectangle.p3, rectangle.p4 };
 
+	// Define new image size and corners
 	transformPoints[0] = Point2f(0, 449);
 	transformPoints[1] = Point2f(0, 0);
 	transformPoints[2] = Point2f(449, 0);
 	transformPoints[3] = Point2f(449, 449);
 
+	// Convert original points to the new ones via warping
 	Mat transform = getPerspectiveTransform(rectanglePoints, transformPoints);
 	warpPerspective(image, perspective, transform, Size(450, 450));
 
+	// If using the binary method, each image should also be processed
 	if (method == Binary)
 	{
-		preprocess(perspective);
+		binaryPreprocess(perspective);
 	}
 
 	return perspective;
@@ -518,6 +519,7 @@ int detectCardBinary(Mat card, Mat flipped, vector<Card> deck)
 	int bestDiff = INT_MAX;
 	int bestIndex;
 
+	// Compare card with all cards in the deck, and return the one with the lowest difference
 	for (size_t i = 0; i < deck.size(); i++)
 	{
 		int diff = getBinaryDiff(card, deck[i].image);
@@ -535,7 +537,7 @@ int detectCardBinary(Mat card, Mat flipped, vector<Card> deck)
 	return bestIndex;
 }
 
-int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
+int detectCardSurf(Mat card, vector<Card> deck)
 {
 	int bestMatches = -1;
 	int bestIndex;
@@ -548,6 +550,7 @@ int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
 	detector.detect(card, keyPoints);
 	extractor.compute(card, keyPoints, descriptors);
 
+	// Compare card with all cards in the deck, and return the one with the most matches
 	for (size_t i = 0; i < deck.size(); i++)
 	{
 		int matches = getSurfMatches(keyPoints, descriptors, deck[i].keyPoints, deck[i].descriptors);
@@ -565,16 +568,16 @@ int detectCardSurf(Mat card, Mat flipped, vector<Card> deck)
 Card detectCard(Mat card, vector<Card> deck, DetectionMethod method)
 {
 	int cardIndex = 0;
-	Mat flipped;
-	flip(card, flipped, -1);
-
+	
 	if (method == Binary)
 	{
+		Mat flipped;
+		flip(card, flipped, -1);
 		cardIndex = detectCardBinary(card, flipped, deck);
 	}
 	else if (method == Surf)
 	{
-		cardIndex = detectCardSurf(card, flipped, deck);
+		cardIndex = detectCardSurf(card, deck);
 	}
 
 	return deck[cardIndex];
@@ -599,9 +602,10 @@ Mat drawCardValue(Mat image, Card card, bool winner)
 	string text = card.symbol + " " + card.suit;
 	Scalar color = winner ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
 
+	// Create a new image with the same size as a card
 	Mat tmpCard = Mat::zeros(450, 450, image.type());
-	Mat tmpImage = Mat::zeros(image.size(), image.type());
-
+	
+	// Get the original points of the card in the detected image 
 	Point2f rectanglePoints[] = { card.rectangle.p1, card.rectangle.p2, card.rectangle.p3, card.rectangle.p4 };
 	Point2f transformPoints[4];
 	transformPoints[0] = Point2f(0, 449);
@@ -609,11 +613,16 @@ Mat drawCardValue(Mat image, Card card, bool winner)
 	transformPoints[2] = Point2f(449, 0);
 	transformPoints[3] = Point2f(449, 449);
 
+	// Draw text in the new card image
 	tmpCard = drawTextCentered(tmpCard, Point(225, 225), text, color);
 
+	// Warp the new card image to the original card position, and store the result in a new image
+	Mat tmpImage = Mat::zeros(image.size(), image.type());
 	Mat transform = getPerspectiveTransform(transformPoints, rectanglePoints);
+
 	warpPerspective(tmpCard, tmpImage, transform, image.size());
 	
+	// Combine the new image with the detected image
 	copyTransparent(image, tmpImage);
 	return image;
 }
@@ -669,12 +678,15 @@ Mat resizeWithLimits(Mat image, int width, int height)
 		return image;
 	}
 
+	// Get the horizontal and vertical ratios
 	float wRatio = (float)image.size().width / width;
 	float hRatio = (float)image.size().height / height;
+
 	int newWidth;
 	int newHeight;
 	Mat resized;
 
+	// Resize the side with the biggest ratio to the lower limit, and adjust the other side to maintain proportions
 	if (wRatio >= hRatio)
 	{
 		newWidth = width;

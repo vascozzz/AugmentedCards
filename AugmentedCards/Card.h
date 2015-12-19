@@ -16,6 +16,10 @@
 using namespace std;
 using namespace cv;
 
+/*
+ * Game card representation. 
+ * Pre-processed values (image perspective, descriptors, etc) are also stored here.
+ */
 struct Card
 {
 	bool isNumber;

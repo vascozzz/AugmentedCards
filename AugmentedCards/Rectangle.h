@@ -14,6 +14,9 @@
 using namespace std;
 using namespace cv;
 
+/*
+ * Encapsulation of all the points in a rectangle for easy access.
+ */
 struct Rectangle
 {
 	Point p1, p2, p3, p4;

@@ -16,6 +16,10 @@
 using namespace std;
 using namespace cv;
 
+/*
+ * Contains multiple structures for lines and operations with lines.
+ */
+
 struct Line
 {
 	int seq;
