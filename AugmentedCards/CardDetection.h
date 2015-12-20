@@ -25,8 +25,8 @@ using namespace std;
  * General methods for card detection.
  */
 
-const int SURF_HESSIAN = 200;
-const double SURF_MAX_DIST = 0.1;
+const int SURF_HESSIAN = 600;
+const double SURF_MAX_DIST = 0.125;
 const double RANSAC_THRESHOLD = 3;
 
 /* Generates and stores a deck (as image) to disk. */
