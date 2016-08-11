@@ -6,12 +6,12 @@ Developed for the class of Augmented Reality (EIC0070) at MIEIC, FEUP.
 
 > The application here presented was fully developed in C++ using OpenCV (Open Source Computer Vision) version 2.4. For card recognition, two methods have been implemented: binary absolute difference and SURF (Speeded Up Robust Features). Binary absolute difference attempts to find the lowest number of differences between two images in a pixel by pixel basis, while SURF based detection attempts to find the highest number of matches.
 
-Further info can be found in the [full report](s).
+Further info can be found in the [full report](Docs/report.pdf).
 
 ## Examples
 
 ![example](Docs/example1.png)
-![example](Docs/example1.png)
+![example](Docs/example2.png)
 
 ## Usage Instructions
 
