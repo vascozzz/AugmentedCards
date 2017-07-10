@@ -31,10 +31,7 @@ struct CompareLineDistance
 {
 	bool operator()(const Line& a, const Line& b)
 	{
-		if (a.distance < b.distance)
-			return true;
-
-		return false;
+		return (a.distance < b.distance);
 	}
 };
 
@@ -42,9 +39,6 @@ struct CompareLineSequence
 {
 	bool operator()(const Line& a, const Line& b)
 	{
-		if (a.seq < b.seq)
-			return true;
-
-		return false;
+		return (a.seq < b.seq);
 	}
 };
